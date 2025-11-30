@@ -34,7 +34,7 @@ class AdminController extends Controller
         $totalRevenue = Transaction::where('status', 'paid')->sum('total_amount');
         $pendingTransactions = Transaction::where('status', 'pending')->count();
 
-        // Events dengan total tiket terjual via FUNCTION
+        // Events dengan total tiket terjual via FUNCTION (INI ADALAH TRIGGER)
         $events = Event::select('id', 'title', 'quota', 'quota_remaining')
             ->selectRaw('f_total_ticket_sold(id) as tickets_sold')
             ->limit(10)

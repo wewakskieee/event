@@ -110,7 +110,7 @@
     <!-- Fallback jika tidak ada banner -->
     <div class="h-[500px] flex items-center justify-center">
         <div class="text-center">
-            <h1 class="text-5xl font-bold mb-4">🎫 EventTix</h1>
+            <h1 class="text-5xl font-bold mb-4">EventTix</h1>
             <p class="text-xl">Your Gateway to Amazing Events</p>
         </div>
     </div>

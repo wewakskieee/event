@@ -53,7 +53,7 @@ class TransactionRepository implements TransactionRepositoryInterface
             ->latest()
             ->get();
     }
-
+//stored procedure
     public function createWithStoredProcedure($eventId, $userId, $quantity)
     {
         $transactionId = 0;

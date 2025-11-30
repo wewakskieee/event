@@ -94,6 +94,7 @@ class TransactionController extends Controller
     }
     public function showTickets($id)
 {
+    //multijoin 
     $transaction = Transaction::with(['user', 'items.event', 'tickets.event'])
         ->findOrFail($id);
     
