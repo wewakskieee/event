@@ -12,7 +12,7 @@
             <!-- Logo -->
             <div class="text-center mb-8">
                 <a href="{{ route('home') }}" class="text-4xl font-bold text-purple-600">
-                    🎫 EventTix
+                EventTix
                 </a>
                 <p class="text-gray-600 mt-2">Create your account</p>
             </div>

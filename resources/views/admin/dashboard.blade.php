@@ -96,7 +96,7 @@
 
 <!-- Event Statistics Table -->
 <div class="bg-white rounded-lg shadow-lg p-6 mt-6">
-    <h2 class="text-xl font-bold mb-4">📊 Event Sales Statistics</h2>
+    <h2 class="text-xl font-bold mb-4">Event Sales Statistics</h2>
     <div class="overflow-x-auto">
         <table class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
