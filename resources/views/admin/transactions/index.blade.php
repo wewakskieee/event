@@ -75,51 +75,37 @@
                 </td>
                 <td class="px-6 py-4 whitespace-nowrap text-sm">
                     <div class="flex gap-2">
+
                         @if($transaction->status === 'pending')
-                            <!-- Mark as Paid Button -->
                             <form action="{{ route('admin.transactions.update-status', $transaction->id) }}" method="POST" class="inline">
                                 @csrf
                                 <input type="hidden" name="status" value="paid">
-                                <button type="submit" 
-                                        onclick="return confirm('Mark this transaction as PAID?')"
-                                        class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-xs font-semibold">
+                                <button type="submit" onclick="return confirm('Mark this transaction as PAID?')" class="bg-green-600 text-white px-3 py-1 rounded hover:bg-green-700 transition text-xs font-semibold">
                                     ✓ Paid
                                 </button>
                             </form>
 
-                            <!-- Cancel Button -->
                             <form action="{{ route('admin.transactions.update-status', $transaction->id) }}" method="POST" class="inline">
                                 @csrf
                                 <input type="hidden" name="status" value="canceled">
-                                <button type="submit" 
-                                        onclick="return confirm('Cancel this transaction? Quota will be restored.')"
-                                        class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-xs font-semibold">
+                                <button type="submit" onclick="return confirm('Cancel this transaction? Quota will be restored.')" class="bg-red-600 text-white px-3 py-1 rounded hover:bg-red-700 transition text-xs font-semibold">
                                     ✗ Cancel
                                 </button>
                             </form>
                         @endif
-                        <!-- TAMBAHKAN TOMBOL TICKETS INI -->
-        @if($transaction->status === 'paid')
-        <a href="{{ route('admin.transactions.tickets', $transaction->id) }}"
-           class="bg-purple-600 text-white px-3 py-1 rounded text-xs hover:bg-purple-700">
-            🎫 Tickets
-        </a>
-        @endif
-        
-        <!-- View Details -->
-        <a href="{{ route('invoice.show', $transaction->id) }}" target="_blank"
-           class="bg-indigo-600 text-white px-3 py-1 rounded text-xs hover:bg-indigo-700">
-            View
-        </a>
-    </div>
-</td>
 
-                        <!-- View Details -->
-                        <a href="{{ route('invoice.show', $transaction->id) }}" 
-                           target="_blank"
-                           class="bg-indigo-600 text-white px-3 py-1 rounded hover:bg-indigo-700 transition text-xs font-semibold">
+                        @if($transaction->status === 'paid')
+                        <a href="{{ route('admin.transactions.tickets', $transaction->id) }}"
+                           class="bg-purple-600 text-white px-3 py-1 rounded text-xs hover:bg-purple-700">
+                            🎫 Tickets
+                        </a>
+                        @endif
+
+                        <a href="{{ route('invoice.show', $transaction->id) }}" target="_blank"
+                           class="bg-indigo-600 text-white px-3 py-1 rounded text-xs hover:bg-indigo-700">
                             👁 View
                         </a>
+
                     </div>
                 </td>
             </tr>
@@ -128,16 +114,12 @@
     </table>
 </div>
 
-<!-- Pagination -->
 <div class="mt-4">
     {{ $transactions->appends(['status' => request('status')])->links() }}
 </div>
 
 @else
 <div class="bg-white rounded-lg shadow p-12 text-center">
-    <svg class="w-16 h-16 mx-auto text-gray-400 mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
-    </svg>
     <h3 class="text-lg font-semibold text-gray-700 mb-2">No Transactions Found</h3>
     <p class="text-gray-500">
         @if(request('status') && request('status') != 'all')
@@ -155,14 +137,17 @@
         <div class="text-sm text-gray-600">Total Transactions</div>
         <div class="text-2xl font-bold text-gray-900">{{ $stats['total'] }}</div>
     </div>
+
     <div class="bg-white rounded-lg shadow p-6">
         <div class="text-sm text-gray-600">Pending</div>
         <div class="text-2xl font-bold text-yellow-600">{{ $stats['pending'] }}</div>
     </div>
+
     <div class="bg-white rounded-lg shadow p-6">
         <div class="text-sm text-gray-600">Paid</div>
         <div class="text-2xl font-bold text-green-600">{{ $stats['paid'] }}</div>
     </div>
+
     <div class="bg-white rounded-lg shadow p-6">
         <div class="text-sm text-gray-600">Canceled</div>
         <div class="text-2xl font-bold text-red-600">{{ $stats['canceled'] }}</div>

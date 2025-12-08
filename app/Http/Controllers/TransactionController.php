@@ -1,5 +1,4 @@
 <?php
-// app/Http/Controllers/TransactionController.php
 
 namespace App\Http\Controllers;
 
@@ -35,12 +34,14 @@ class TransactionController extends Controller
         $validated = $request->validate([
             'event_id' => 'required|exists:events,id',
             'quantity' => 'required|integer|min:1',
+            'promo_code' => 'nullable|string'
         ]);
 
         $result = $this->transactionService->createTransaction(
             $validated['event_id'],
             Auth::id(),
-            $validated['quantity']
+            $validated['quantity'],
+            $validated['promo_code'] ?? null
         );
 
         if ($result['success']) {
@@ -55,7 +56,6 @@ class TransactionController extends Controller
     {
         $transaction = $this->transactionService->getTransactionById($id);
         
-        // Check authorization
         if ($transaction->user_id !== Auth::id() && !Auth::user()->isAdmin()) {
             abort(403);
         }
@@ -69,6 +69,50 @@ class TransactionController extends Controller
         
         return view('transactions.index', compact('transactions'));
     }
+
+
+    /**
+     * 🔥 Apply Promo Code AJAX Handler
+     */
+    public function applyPromo(Request $request)
+    {
+        $data = $request->validate([
+            'event_id' => 'required|integer|exists:transactions,event_id',
+            'promo_code' => 'required|string',
+        ]);
+
+        // Cari transaksi pending user untuk event ini
+        $transaction = Transaction::where('event_id', $data['event_id'])
+            ->where('user_id', Auth::id())
+            ->where('status', 'pending')
+            ->first();
+
+        if (!$transaction) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Transaction not found or already processed',
+            ], 404);
+        }
+
+        // Call Stored Procedure
+        DB::statement('CALL SP_ApplyPromoCode(?, ?, ?, @discount, @final, @msg)', [
+            $transaction->id,
+            $data['promo_code'],
+            Auth::id(),
+        ]);
+
+        $result = DB::select('SELECT @discount AS discount_amount, @final AS final_amount, @msg AS message')[0];
+
+        $success = ($result->message === 'Promo code applied successfully');
+
+        return response()->json([
+            'success' => $success,
+            'discount_amount' => (float) $result->discount_amount,
+            'final_amount' => (float) $result->final_amount,
+            'message' => $result->message,
+        ]);
+    }
+
 
     // ADMIN METHODS
     public function adminIndex(Request $request)
@@ -92,42 +136,141 @@ class TransactionController extends Controller
         
         return view('admin.transactions.index', compact('transactions', 'stats'));
     }
+
     public function showTickets($id)
-{
-    //multijoin 
-    $transaction = Transaction::with(['user', 'items.event', 'tickets.event'])
-        ->findOrFail($id);
-    
-    return view('admin.transactions.tickets', compact('transaction'));
-}
-    public function updateStatus(Request $request, $id)
     {
-        $validated = $request->validate([
-            'status' => 'required|in:pending,paid,canceled',
+        $transaction = Transaction::with(['user', 'items.event', 'tickets.event'])
+            ->findOrFail($id);
+        
+        return view('admin.transactions.tickets', compact('transaction'));
+    }
+    // app/Http/Controllers/TransactionController.php
+
+public function validatePromo(Request $request)
+{
+    $data = $request->validate([
+        'promo_code' => 'required|string',
+        'subtotal' => 'required|numeric|min:0',
+    ]);
+
+    try {
+        $promo = DB::table('promo_codes')
+            ->where('code', $data['promo_code'])
+            ->first();
+
+        // Validasi promo
+        if (!$promo) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Promo code not found',
+                'discount_amount' => 0,
+                'final_amount' => $data['subtotal']
+            ]);
+        }
+
+        if (!$promo->active) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Promo code is inactive',
+                'discount_amount' => 0,
+                'final_amount' => $data['subtotal']
+            ]);
+        }
+
+        if (now()->lt($promo->valid_from)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Promo code not yet valid',
+                'discount_amount' => 0,
+                'final_amount' => $data['subtotal']
+            ]);
+        }
+
+        if (now()->gt($promo->valid_until)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Promo code has expired',
+                'discount_amount' => 0,
+                'final_amount' => $data['subtotal']
+            ]);
+        }
+
+        if ($promo->uses >= $promo->max_uses) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Promo code usage limit reached',
+                'discount_amount' => 0,
+                'final_amount' => $data['subtotal']
+            ]);
+        }
+
+        // Cek apakah user sudah pernah pakai promo ini
+        $userUsage = DB::table('transactions')
+            ->where('user_id', auth()->id())
+            ->where('promo_code_id', $promo->id)
+            ->whereIn('status', ['paid', 'pending'])
+            ->count();
+
+        if ($userUsage > 0) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You have already used this promo code',
+                'discount_amount' => 0,
+                'final_amount' => $data['subtotal']
+            ]);
+        }
+
+        // Hitung diskon
+        $discount = 0;
+        if ($promo->type === 'flat') {
+            $discount = $promo->value;
+        } elseif ($promo->type === 'percent') {
+            $discount = ($data['subtotal'] * $promo->value) / 100;
+        }
+
+        // Pastikan diskon tidak melebihi subtotal
+        if ($discount > $data['subtotal']) {
+            $discount = $data['subtotal'];
+        }
+
+        $finalAmount = $data['subtotal'] - $discount;
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Promo code applied successfully',
+            'discount_amount' => $discount,
+            'final_amount' => $finalAmount,
+            'promo_id' => $promo->id
         ]);
 
-        $transaction = Transaction::with('items')->findOrFail($id);
-        
-        // Jika status berubah ke canceled, kembalikan quota
-        if ($validated['status'] === 'canceled' && $transaction->status !== 'canceled') {
-            DB::transaction(function () use ($transaction) {
-                foreach ($transaction->items as $item) {
-                    DB::table('events')
-                        ->where('id', $item->event_id)
-                        ->increment('quota_remaining', $item->quantity);
-                }
-            });
-        }
-
-        // Update status
-        $updateData = ['status' => $validated['status']];
-        
-        if ($validated['status'] === 'paid') {
-            $updateData['paid_at'] = now();
-        }
-        
-        $transaction->update($updateData);
-
-        return back()->with('success', 'Transaction status updated to ' . $validated['status']);
+    } catch (\Exception $e) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Failed to validate promo code: ' . $e->getMessage(),
+            'discount_amount' => 0,
+            'final_amount' => $data['subtotal']
+        ], 500);
     }
+}
+
+    public function updateStatus(Request $request, $id)
+{
+    $validated = $request->validate([
+        'status' => 'required|in:pending,paid,canceled',
+    ]);
+
+    $transaction = Transaction::findOrFail($id);
+    
+    // ✅ HANYA UPDATE STATUS - Biar trigger yang handle restore quota
+    $updateData = ['status' => $validated['status']];
+    
+    if ($validated['status'] === 'paid') {
+        $updateData['paid_at'] = now();
+    }
+    
+    $transaction->update($updateData);
+
+    return back()->with('success', 'Transaction status updated to ' . $validated['status']);
+}
+
 }
